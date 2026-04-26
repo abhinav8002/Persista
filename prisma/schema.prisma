@@ -1,0 +1,102 @@
+datasource db {
+    provider     = "mysql"
+    url          = env("DATABASE_URL")
+    relationMode = "prisma"
+}
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+model User {
+    id        String                @id @default(uuid())
+    email     String                @unique
+    name      String?
+    picture   String?
+    createdAt DateTime              @default(now())
+    updatedAt DateTime              @updatedAt
+    projects  UserProjectRelation[]
+}
+
+model UserProjectRelation {
+    id        String  @id @default(uuid())
+    user      User    @relation(fields: [userId], references: [id])
+    userId    String
+    project   Project @relation(fields: [projectId], references: [id])
+    projectId String
+    isAdmin   Boolean
+}
+
+model Project {
+    id                String                @id @default(uuid())
+    title             String
+    description       String                @db.LongText
+    createdAt         DateTime              @default(now())
+    updatedAt         DateTime              @updatedAt
+    primaryApiKey     String                @unique
+    chatEndpoint      String?
+    analyticsEndpoint String?
+    userProjects      UserProjectRelation[]
+    apiKeys           ApiKey[]
+    actions           Action[]
+}
+
+enum ModelType {
+    GPT
+    Llamma2
+}
+
+model ApiKey {
+    id                String    @id @default(uuid())
+    createdAt         DateTime  @default(now())
+    updatedAt         DateTime  @updatedAt
+    project           Project   @relation(fields: [projectId], references: [id])
+    projectId         String
+    modelType         ModelType @default(Llamma2)
+    apiKey            String
+    apiKeyDescription String?   @db.LongText
+}
+
+model Action {
+    id                 String   @id @default(uuid())
+    firstQuery         String
+    createdAt          DateTime @default(now())
+    updatedAt          DateTime @updatedAt
+    project            Project  @relation(fields: [projectId], references: [id])
+    projectId          String
+    title              String
+    pitch              String   @db.LongText
+    chats              Chat[]
+    similarWords       String?  @db.LongText
+    instruction        String?  @db.LongText
+    positive_threshold Float?   @default(0.85)
+    negative_threshold Float?   @default(0.85)
+}
+
+enum ChatStatus {
+    POSITIVE
+    NEGATIVE
+    INDETERMINATE
+}
+
+model Chat {
+    id        String     @id @default(uuid())
+    createdAt DateTime   @default(now())
+    updatedAt DateTime   @updatedAt
+    action    Action     @relation(fields: [actionId], references: [id])
+    actionId  String
+    messages  Messages[] @relation("Messages")
+    status    ChatStatus @default(INDETERMINATE)
+}
+
+model Messages {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    chat      Chat     @relation("Messages", fields: [chatId], references: [id])
+    chatId    String
+    message   String   @db.LongText
+    response  String   @db.LongText
+    isUser    Boolean
+    sentiment Float?   @default(0)
+}
